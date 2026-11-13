@@ -8,7 +8,7 @@ import { STAGES, simulate, MAX_SPEED, MIN_SPEED } from '../site/js/slingshot-cor
 import { traceRay, RAYS } from '../site/js/levels/bendy.js';
 
 const root = path.resolve(import.meta.dirname, '../site');
-const types = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css' };
+const types = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.mp3': 'audio/mpeg' };
 const server = http.createServer((req, res) => {
   const file = path.join(root, req.url === '/' ? 'index.html' : decodeURIComponent(req.url.split('?')[0]));
   if (!file.startsWith(root) || !fs.existsSync(file)) { res.writeHead(404); return res.end(); }
@@ -164,6 +164,26 @@ const plays = {
       await page.locator('.why .btn').click();
     }
     await expectStar('drop', 'quiz', 3000);
+  },
+  /** Reading a quiz question aloud plays its recording, then each answer in the order shown. */
+  async narration() {
+    const q = 'In a room with NO air, you drop a feather and a bowling ball. What happens?';
+    const opts = ['They land at the same time', 'The bowling ball lands first', 'The feather floats up'];
+    const manifest = { [q]: 'q.mp3', [opts[0]]: 'o0.mp3', [opts[1]]: 'o1.mp3', [opts[2]]: 'o2.mp3' };
+    const asked = [];
+    await page.route('**/audio/manifest.json', (r) => r.fulfill({ json: manifest }));
+    // no real audio in the test: serve empty files so each fails fast and the queue moves on
+    await page.route('**/audio/*.mp3', (r) => { asked.push(r.request().url().split('/').pop()); r.fulfill({ status: 200, contentType: 'audio/mpeg', body: '' }); });
+    await page.goto(url + '#/map'); await page.reload();
+    await open('drop', 1);
+    const shown = await page.locator('.opt').allTextContents();
+    await page.locator('.say-inline').click();
+    await page.waitForTimeout(1500);
+    const want = ['q.mp3', ...shown.map((t) => manifest[t])];
+    const ok = JSON.stringify(asked) === JSON.stringify(want);
+    results.push({ level: 'narration', id: 'order', ok });
+    console.log(`${ok ? 'ok  ' : 'FAIL'} narration plays ${asked.join(', ') || 'nothing'} (wanted ${want.join(', ')})`);
+    await page.unroute('**/audio/manifest.json'); await page.unroute('**/audio/*.mp3');
   },
 };
 

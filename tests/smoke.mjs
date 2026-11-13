@@ -7,7 +7,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 const root = path.resolve(import.meta.dirname, '../site');
-const types = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css' };
+const types = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.mp3': 'audio/mpeg' };
 const server = http.createServer((req, res) => {
   const file = path.join(root, req.url === '/' ? 'index.html' : decodeURIComponent(req.url.split('?')[0]));
   if (!file.startsWith(root) || !fs.existsSync(file)) { res.writeHead(404); return res.end(); }

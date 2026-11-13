@@ -1,8 +1,8 @@
 import { state, save, hasStar, giveStar, totalStars } from './store.js';
 import { sfx, unlock, startMusic, stopMusic } from './audio.js';
-import { speak, hush, canSpeak } from './speech.js';
+import { speak, hush } from './speech.js';
 import { h, toast, confetti, NEWT_SVG } from './ui.js';
-import { LEVELS } from './levels/index.js';
+import { LEVELS, QUIZ_INTRO } from './levels/index.js';
 
 const app = document.getElementById('app');
 const ALL_STARS = LEVELS.reduce((n, l) => n + l.stars.length, 0);
@@ -30,7 +30,6 @@ document.getElementById('narrate-btn').onclick = () => {
   if (!state.narrate) hush();
   toast(state.narrate ? '🗣️ Newt will read out loud' : 'Read-aloud is off');
 };
-if (!canSpeak) document.getElementById('narrate-btn').hidden = true;
 // Browsers only allow sound after a tap, so wake audio up on the first one.
 addEventListener('pointerdown', unlock, { once: true });
 
@@ -149,7 +148,7 @@ function certificate() {
 
 // ---------- level shell ----------
 function showLevel(level) {
-  const stages = [...level.stages, { say: 'Quiz time! No rush, and you can try again if you miss one.', goals: ['quiz'], build: quizStage }];
+  const stages = [...level.stages, { say: QUIZ_INTRO, goals: ['quiz'], build: quizStage }];
   let cur = 0;
 
   const starsEl = h('div', { class: 'level-stars' });
@@ -162,7 +161,7 @@ function showLevel(level) {
     onend: () => newtEl.classList.remove('talking'),
   });
   const bubble = h('div', { class: 'bubble' }, bubbleText,
-    canSpeak ? h('button', { class: 'say', title: 'Read this out loud', onclick: talk }, '🔊') : null);
+    h('button', { class: 'say', title: 'Read this out loud', onclick: talk }, '🔊'));
   newtEl.append(bubble);
   const stageEl = h('div');
   const whoaEl = h('div');
@@ -258,10 +257,13 @@ function showLevel(level) {
             }
           },
         }, q.opts[i])));
+      // the question, then each answer in the order it is shown
+      const readOut = () => speak([q.q, ...order.map((i) => q.opts[i])]);
       el.append(h('div', { class: 'panel quiz' },
         h('div', { class: 'qcount' }, `Question ${n + 1} of ${qs.length}`),
-        h('h3', {}, q.q), opts, why));
-      if (state.narrate) speak(q.q);
+        h('h3', {}, q.q, ' ', h('button', { class: 'say-inline', title: 'Read the question out loud', onclick: readOut }, '🔊')),
+        opts, why));
+      if (state.narrate) readOut();
     };
     render();
   }

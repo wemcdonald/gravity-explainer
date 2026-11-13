@@ -28,6 +28,23 @@ Sound effects and music are synthesised in the browser (Web Audio), and the
 read-aloud button uses the browser's built-in voices, so there are no audio
 files and no accounts or tracking.
 
+## Narration
+
+Newt's intros and every quiz question, answer and explanation can be read aloud.
+Lines with a pre-recorded file in `site/audio/` play that; anything else falls
+back to the browser's built-in voice.
+
+Recordings are made once, on a developer machine, by `tools/narrate.mjs`, so the
+text-to-speech API key is never sent to the browser:
+
+```sh
+echo 'ELEVENLABS_API_KEY=...' > .env   # or OPENAI_API_KEY=...; .env is git-ignored
+npm run narrate                        # records missing lines, removes stale ones
+npm run narrate -- --check             # exits 1 if any line lacks a recording
+```
+
+Re-run it after changing any narrated text. Use `--redo` after changing the voice.
+
 ## Run it
 
 It is a static site with no build step:
