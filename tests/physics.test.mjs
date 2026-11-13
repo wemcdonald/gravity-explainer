@@ -1,13 +1,13 @@
 // Checks that the numbers the app teaches match real physics.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { THINGS, PLACES, fallTime, winner } from '../site/js/levels/drop.js';
-import { WORLDS, jumpHeight } from '../site/js/levels/hop.js';
-import { pullForce } from '../site/js/levels/pull.js';
-import { classify, V_CIRC, V_ESC } from '../site/js/levels/cannon.js';
-import { THINGS as SQUISH, escapeSpeed, fmtLen, RS, ISCO, ENGINE, ORB_RADII, inwardDrift, radialSpeed } from '../site/js/levels/blackhole.js';
-import { chirpFor } from '../site/js/levels/waves.js';
-import { traceRay, RAYS } from '../site/js/levels/bendy.js';
+import { THINGS, PLACES, fallTime, winner } from '../site/app/levels/drop.js';
+import { WORLDS, jumpHeight } from '../site/app/levels/hop.js';
+import { pullForce } from '../site/app/levels/pull.js';
+import { classify, V_CIRC, V_ESC } from '../site/app/levels/cannon.js';
+import { THINGS as SQUISH, escapeSpeed, fmtLen, RS, ISCO, ENGINE, ORB_RADII, inwardDrift, radialSpeed } from '../site/app/levels/blackhole.js';
+import { chirpFor } from '../site/app/levels/waves.js';
+import { traceRay, RAYS } from '../site/app/levels/bendy.js';
 
 const near = (a, b, tol) => assert.ok(Math.abs(a - b) <= tol, `${a} not within ${tol} of ${b}`);
 

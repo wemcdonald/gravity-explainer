@@ -18,8 +18,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
-import { LEVELS, QUIZ_INTRO } from '../site/js/levels/index.js';
-import { plain } from '../site/js/narration-text.js';
+import { LEVELS, QUIZ_INTRO } from '../site/app/levels/index.js';
+import { plain } from '../site/app/narration-text.js';
 
 const root = path.resolve(import.meta.dirname, '..');
 const outDir = path.join(root, 'site/audio');
@@ -37,16 +37,30 @@ if (fs.existsSync(envFile)) {
   }
 }
 
-/** Every fixed line the app can read aloud: Newt's intros, quiz questions, answers and explanations. */
+/**
+ * Every fixed line the app can read aloud, as text -> kind. Quiz questions are
+ * their own kind so they can be voiced with a livelier, more questioning delivery.
+ */
 export function narrationLines() {
-  const lines = new Set([plain(QUIZ_INTRO)]);
+  const lines = new Map([[plain(QUIZ_INTRO), 'line']]);
   for (const level of LEVELS) {
-    for (const stage of level.stages) lines.add(plain(stage.say));
-    for (const q of level.quiz) { lines.add(plain(q.q)); lines.add(plain(q.why)); q.opts.forEach((o) => lines.add(plain(o))); }
+    for (const stage of level.stages) lines.set(plain(stage.say), 'line');
+    for (const q of level.quiz) {
+      lines.set(plain(q.why), 'line');
+      q.opts.forEach((o) => lines.set(plain(o), 'line'));
+      lines.set(plain(q.q), 'question');
+    }
   }
   lines.delete('');
-  return [...lines];
+  return lines;
 }
+
+// ElevenLabs delivery per kind. Lower stability and higher style give a wider
+// pitch range, which is what makes a question rise at the end.
+const DELIVERY = {
+  line: { stability: 0.5, similarity_boost: 0.75, style: 0.2, use_speaker_boost: true },
+  question: { stability: 0.3, similarity_boost: 0.75, style: 0.55, use_speaker_boost: true },
+};
 
 const STYLE = 'A warm, upbeat science guide talking to a curious 10-year-old. Clear and friendly, lively but not babyish, medium pace.';
 const name = process.env.TTS_PROVIDER || (process.env.ELEVENLABS_API_KEY ? 'elevenlabs' : process.env.OPENAI_API_KEY ? 'openai' : 'elevenlabs');
@@ -55,28 +69,29 @@ const DEFAULT_VOICE = { elevenlabs: 'xd8j2LFPw16XKmJ5qeBK', openai: 'coral' };
 const voice = voiceArg || (name === 'openai' ? process.env.OPENAI_TTS_VOICE : process.env.ELEVENLABS_VOICE_ID) || DEFAULT_VOICE[name];
 const model = name === 'openai' ? process.env.OPENAI_TTS_MODEL || 'gpt-4o-mini-tts' : process.env.ELEVENLABS_MODEL || 'eleven_multilingual_v2';
 const providers = {
-  elevenlabs: async (text) => {
+  elevenlabs: async (text, kind) => {
     const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(voice)}?output_format=mp3_44100_128`, {
       method: 'POST',
       headers: { 'xi-api-key': process.env.ELEVENLABS_API_KEY, 'content-type': 'application/json' },
-      body: JSON.stringify({ text, model_id: model }),
+      body: JSON.stringify({ text, model_id: model, voice_settings: DELIVERY[kind] }),
     });
     if (!res.ok) throw new Error(`ElevenLabs ${res.status}: ${(await res.text()).slice(0, 300)}`);
     return Buffer.from(await res.arrayBuffer());
   },
-  openai: async (text) => {
+  openai: async (text, kind) => {
     const res = await fetch('https://api.openai.com/v1/audio/speech', {
       method: 'POST',
       headers: { authorization: `Bearer ${process.env.OPENAI_API_KEY}`, 'content-type': 'application/json' },
-      body: JSON.stringify({ model, voice, input: text, instructions: STYLE, response_format: 'mp3' }),
+      body: JSON.stringify({ model, voice, input: text, instructions: kind === 'question' ? `${STYLE} This is a quiz question: end with a clear rising, curious tone.` : STYLE, response_format: 'mp3' }),
     });
     if (!res.ok) throw new Error(`OpenAI ${res.status}: ${(await res.text()).slice(0, 300)}`);
     return Buffer.from(await res.arrayBuffer());
   },
 };
 
-const lines = narrationLines();
-const fileFor = (text) => `${crypto.createHash('sha1').update(`${name}|${model}|${voice}|${text}`).digest('hex').slice(0, 12)}.mp3`;
+const kinds = narrationLines();
+const lines = [...kinds.keys()];
+const fileFor = (text) => `${crypto.createHash('sha1').update(`${name}|${model}|${voice}|${JSON.stringify(DELIVERY[kinds.get(text)])}|${text}`).digest('hex').slice(0, 12)}.mp3`;
 const chars = lines.reduce((n, l) => n + l.length, 0);
 const have = (text) => fs.existsSync(path.join(outDir, fileFor(text)));
 
@@ -101,7 +116,7 @@ console.log(`${name} (${model}, voice ${voice}): recording ${todo.length} of ${l
 let made = 0;
 for (const text of todo) {
   try {
-    const mp3 = await providers[name](text);
+    const mp3 = await providers[name](text, kinds.get(text));
     if (mp3.length < 500) throw new Error(`suspiciously small audio (${mp3.length} bytes)`);
     fs.writeFileSync(path.join(outDir, fileFor(text)), mp3);
     made++;

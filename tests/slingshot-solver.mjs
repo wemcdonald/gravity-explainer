@@ -1,7 +1,7 @@
 // Brute-force every launch angle and power for each Slingshot stage and report
 // how much of the aiming space wins. Fails if a stage is unsolvable, or if a
 // stage that is meant to need gravity can be won with gravity switched off.
-import { STAGES, simulate, MAX_SPEED, MIN_SPEED } from '../site/js/slingshot-core.js';
+import { STAGES, simulate, MAX_SPEED, MIN_SPEED } from '../site/app/slingshot-core.js';
 
 let failed = false;
 STAGES.forEach((stage, i) => {

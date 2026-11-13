@@ -76,13 +76,13 @@ The browser tests need Google Chrome installed.
 ```
 site/                 everything that is served
   index.html, css/
-  js/main.js          welcome screen, mission map, level pages, quiz
-  js/ui.js            DOM/canvas helpers, confetti, Newt the mascot
-  js/audio.js         synthesised sound effects and music
-  js/speech.js        read-aloud
-  js/store.js         saved progress
-  js/slingshot-core.js  pure physics + stage data for the Slingshot game
-  js/levels/*.js      one file per mission
+  app/main.js         welcome screen, mission map, level pages, quiz
+  app/ui.js            DOM/canvas helpers, confetti, Newt the mascot
+  app/audio.js         synthesised sound effects and music
+  app/speech.js        read-aloud
+  app/store.js         saved progress
+  app/slingshot-core.js  pure physics + stage data for the Slingshot game
+  app/levels/*.js      one file per mission
 tests/
 ```
 

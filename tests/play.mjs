@@ -4,8 +4,8 @@ import { chromium } from 'playwright-core';
 import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
-import { STAGES, simulate, MAX_SPEED, MIN_SPEED } from '../site/js/slingshot-core.js';
-import { traceRay, RAYS } from '../site/js/levels/bendy.js';
+import { STAGES, simulate, MAX_SPEED, MIN_SPEED } from '../site/app/slingshot-core.js';
+import { traceRay, RAYS } from '../site/app/levels/bendy.js';
 
 const root = path.resolve(import.meta.dirname, '../site');
 const types = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.mp3': 'audio/mpeg' };
@@ -178,7 +178,7 @@ const plays = {
     await open('drop', 1);
     const shown = await page.locator('.opt').allTextContents();
     await page.locator('.say-inline').click();
-    await page.waitForTimeout(1500);
+    await page.waitForTimeout(4500); // includes the pauses between answers
     const want = ['q.mp3', ...shown.map((t) => manifest[t])];
     const ok = JSON.stringify(asked) === JSON.stringify(want);
     results.push({ level: 'narration', id: 'order', ok });
