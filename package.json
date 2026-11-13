@@ -1,0 +1,13 @@
+{
+  "name": "gravity-explainer",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/physics.test.mjs && node tests/slingshot-solver.mjs && node tests/smoke.mjs && node tests/play.mjs",
+    "solve": "node tests/slingshot-solver.mjs",
+    "serve": "python3 -m http.server 8377 -d site"
+  },
+  "devDependencies": {
+    "playwright-core": "^1.65.0"
+  }
+}

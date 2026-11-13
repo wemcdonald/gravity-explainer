@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b1026">
+<title>Gravity Quest</title>
+<meta name="description" content="Play your way from falling apples to black holes.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🪐</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<canvas id="starfield" aria-hidden="true"></canvas>
+<header id="topbar">
+  <button id="home-btn" class="icon-btn" title="Mission map" aria-label="Mission map">🪐 <span class="brand">Gravity Quest</span></button>
+  <div class="spacer"></div>
+  <div id="star-count" title="Stars collected">⭐ <span id="star-num">0</span></div>
+  <button id="narrate-btn" class="icon-btn toggle" title="Read out loud" aria-label="Read out loud">🗣️</button>
+  <button id="music-btn" class="icon-btn toggle" title="Music" aria-label="Music">🎵</button>
+  <button id="sfx-btn" class="icon-btn toggle" title="Sound effects" aria-label="Sound effects">🔊</button>
+</header>
+<main id="app"></main>
+<div id="toast" role="status" aria-live="polite"></div>
+<canvas id="confetti" aria-hidden="true"></canvas>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
