@@ -5,7 +5,11 @@
 //   node tools/narrate.mjs            record anything missing, drop anything stale
 //   node tools/narrate.mjs --list     show what would be recorded, no network
 //   node tools/narrate.mjs --check    exit 1 unless every line has a recording
-//   node tools/narrate.mjs --redo     re-record everything (e.g. after changing voice)
+//   node tools/narrate.mjs --redo     re-record everything
+//   node tools/narrate.mjs --voice ID  use this voice (overrides .env and the default)
+//
+// File names include the service, model and voice, so choosing another voice
+// records a fresh set and removes the old one; no --redo needed.
 //
 // Reads keys from the environment or from a git-ignored .env in the repo root:
 //   ELEVENLABS_API_KEY=...   (optional ELEVENLABS_VOICE_ID, ELEVENLABS_MODEL)
@@ -20,7 +24,10 @@ import { plain } from '../site/js/narration-text.js';
 const root = path.resolve(import.meta.dirname, '..');
 const outDir = path.join(root, 'site/audio');
 const manifestPath = path.join(outDir, 'manifest.json');
-const flags = new Set(process.argv.slice(2));
+const argv = process.argv.slice(2);
+const flags = new Set(argv);
+const voiceArg = argv.includes('--voice') ? argv[argv.indexOf('--voice') + 1] : null;
+if (argv.includes('--voice') && (!voiceArg || voiceArg.startsWith('--'))) { console.error('--voice needs a voice ID'); process.exit(2); }
 
 const envFile = path.join(root, '.env');
 if (fs.existsSync(envFile)) {
@@ -42,13 +49,17 @@ export function narrationLines() {
 }
 
 const STYLE = 'A warm, upbeat science guide talking to a curious 10-year-old. Clear and friendly, lively but not babyish, medium pace.';
+const name = process.env.TTS_PROVIDER || (process.env.ELEVENLABS_API_KEY ? 'elevenlabs' : process.env.OPENAI_API_KEY ? 'openai' : 'elevenlabs');
+// The chosen voice: --voice, then .env / environment, then the project default.
+const DEFAULT_VOICE = { elevenlabs: 'xd8j2LFPw16XKmJ5qeBK', openai: 'coral' };
+const voice = voiceArg || (name === 'openai' ? process.env.OPENAI_TTS_VOICE : process.env.ELEVENLABS_VOICE_ID) || DEFAULT_VOICE[name];
+const model = name === 'openai' ? process.env.OPENAI_TTS_MODEL || 'gpt-4o-mini-tts' : process.env.ELEVENLABS_MODEL || 'eleven_multilingual_v2';
 const providers = {
   elevenlabs: async (text) => {
-    const voice = process.env.ELEVENLABS_VOICE_ID || '21m00Tcm4TlvDq8ikWAM';
-    const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voice}?output_format=mp3_44100_128`, {
+    const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(voice)}?output_format=mp3_44100_128`, {
       method: 'POST',
       headers: { 'xi-api-key': process.env.ELEVENLABS_API_KEY, 'content-type': 'application/json' },
-      body: JSON.stringify({ text, model_id: process.env.ELEVENLABS_MODEL || 'eleven_multilingual_v2' }),
+      body: JSON.stringify({ text, model_id: model }),
     });
     if (!res.ok) throw new Error(`ElevenLabs ${res.status}: ${(await res.text()).slice(0, 300)}`);
     return Buffer.from(await res.arrayBuffer());
@@ -57,7 +68,7 @@ const providers = {
     const res = await fetch('https://api.openai.com/v1/audio/speech', {
       method: 'POST',
       headers: { authorization: `Bearer ${process.env.OPENAI_API_KEY}`, 'content-type': 'application/json' },
-      body: JSON.stringify({ model: process.env.OPENAI_TTS_MODEL || 'gpt-4o-mini-tts', voice: process.env.OPENAI_TTS_VOICE || 'coral', input: text, instructions: STYLE, response_format: 'mp3' }),
+      body: JSON.stringify({ model, voice, input: text, instructions: STYLE, response_format: 'mp3' }),
     });
     if (!res.ok) throw new Error(`OpenAI ${res.status}: ${(await res.text()).slice(0, 300)}`);
     return Buffer.from(await res.arrayBuffer());
@@ -65,12 +76,12 @@ const providers = {
 };
 
 const lines = narrationLines();
-const fileFor = (text) => `${crypto.createHash('sha1').update(text).digest('hex').slice(0, 12)}.mp3`;
+const fileFor = (text) => `${crypto.createHash('sha1').update(`${name}|${model}|${voice}|${text}`).digest('hex').slice(0, 12)}.mp3`;
 const chars = lines.reduce((n, l) => n + l.length, 0);
 const have = (text) => fs.existsSync(path.join(outDir, fileFor(text)));
 
 if (flags.has('--list')) {
-  console.log(`${lines.length} lines, ${chars} characters; ${lines.filter(have).length} already recorded`);
+  console.log(`${lines.length} lines, ${chars} characters; ${lines.filter(have).length} already recorded with ${name} voice ${voice}`);
   process.exit(0);
 }
 if (flags.has('--check')) {
@@ -80,14 +91,13 @@ if (flags.has('--check')) {
   process.exit(missing.length ? 1 : 0);
 }
 
-const name = process.env.TTS_PROVIDER || (process.env.ELEVENLABS_API_KEY ? 'elevenlabs' : process.env.OPENAI_API_KEY ? 'openai' : null);
-if (!name || !providers[name]) {
+if (!providers[name] || !process.env[name === 'openai' ? 'OPENAI_API_KEY' : 'ELEVENLABS_API_KEY']) {
   console.error('No text-to-speech key found. Put ELEVENLABS_API_KEY=... or OPENAI_API_KEY=... in .env (git-ignored) and run again.');
   process.exit(2);
 }
 fs.mkdirSync(outDir, { recursive: true });
 const todo = flags.has('--redo') ? lines : lines.filter((l) => !have(l));
-console.log(`${name}: recording ${todo.length} of ${lines.length} lines (${todo.reduce((n, l) => n + l.length, 0)} characters)`);
+console.log(`${name} (${model}, voice ${voice}): recording ${todo.length} of ${lines.length} lines (${todo.reduce((n, l) => n + l.length, 0)} characters)`);
 let made = 0;
 for (const text of todo) {
   try {
